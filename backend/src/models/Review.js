@@ -1,3 +1,4 @@
+// review.js
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
@@ -6,8 +7,7 @@ module.exports = (sequelize) => {
     userId: { type: DataTypes.INTEGER, allowNull: false },
     bookId: { type: DataTypes.INTEGER, allowNull: false },
     comment: { type: DataTypes.TEXT, allowNull: false },
-    rating: { type: DataTypes.FLOAT, allowNull: false },
-    username: { type: DataTypes.STRING, allowNull: false }, // Ensure username is always stored
-    createdAt: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }, // Ensure timestamps are auto-generated
+    rating: { type: DataTypes.INTEGER, allowNull: false },
+    username: { type: DataTypes.STRING },  // optional, if you want to denormalize
   });
 };
