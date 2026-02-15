@@ -1,90 +1,64 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { fetchBookDetails, fetchReviews, submitReview } from "../../../services/api";
-import { useUser } from "../../../context/UserContext";
+import Link from "next/link";
+import ReviewForm from "./ReviewForm"; // <--- Import at the top
 
-export default function BookDetails() {
-  const { id } = useParams();
-  const { user } = useUser();
-  const [book, setBook] = useState(null);
-  const [reviews, setReviews] = useState([]);
-  const [newReview, setNewReview] = useState("");
-  const [rating, setRating] = useState(5);
-  const [error, setError] = useState(null);
+async function fetchBookDetails(id) {
+    const API_URL = process.env.API_URL || "http://internal-internalloadbalancer-1307064942.ap-south-1.elb.amazonaws.com:3001";
+    const res = await fetch(`${API_URL}/api/books/${id}`, { cache: "no-store" });
+    if (!res.ok) throw new Error("Failed to fetch book details");
+    return res.json();
+}
 
-  useEffect(() => {
-    fetchBookDetails(id).then(setBook).catch(err => console.error(err));
-    fetchReviews(id).then(setReviews).catch(err => console.error(err));
-  }, [id]);
+async function fetchReviews(id) {
+    const API_URL = process.env.API_URL || "http://internal-internalloadbalancer-1307064942.ap-south-1.elb.amazonaws.com:3001";
+    const res = await fetch(`${API_URL}/api/reviews/${id}`, { cache: "no-store" });
+    if (!res.ok) return [];
+    return res.json();
+}
 
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
+export default async function BookDetails({ params }) {
+    const id = params.id;
+    let book;
+    let reviews;
 
-    if (!user) {
-      setError("You must be logged in to post a review.");
-      return;
+    try {
+        book = await fetchBookDetails(id);
+    } catch (e) {
+        return <p className="text-center text-red-500">Error loading book details.</p>;
     }
 
     try {
-      const token = localStorage.getItem("token");
-      const response = await submitReview({ bookId: id, comment: newReview, rating }, token);
-      setReviews([response.review, ...reviews]);
-      setNewReview("");
-    } catch (error) {
-      setError(error.response?.data?.message || "Failed to submit review.");
+        reviews = await fetchReviews(id);
+    } catch {
+        reviews = [];
     }
-  };
 
-  if (!book) return <p className="text-center">Loading book details...</p>;
+    return (
+        <div className="min-h-screen p-6">
+            <h1 className="text-3xl font-bold text-blue-700 mb-6">{book.title}</h1>
+            <p className="text-gray-600">by {book.author}</p>
+            <p className="text-sm mt-2">⭐ {book.rating}/5</p>
+            <h2 className="text-2xl mt-6">Reviews</h2>
+            {reviews.length === 0 ? (
+                <p>No reviews yet.</p>
+            ) : (
+                <ul className="mt-2">
+                    {reviews.map((review, idx) => (
+                        <li key={idx} className="border p-2 my-2 rounded">
+                            <p className="font-bold">{review.username}</p>
+                            <p>{review.comment}</p>
+                            <p className="text-sm">⭐{review.rating}/5</p>
+                        </li>
+                    ))}
+                </ul>
+            )}
 
-  return (
-    <div className="min-h-screen p-6">
-      <h1 className="text-3xl font-bold">{book.title}</h1>
-      <p className="text-gray-600">by {book.author}</p>
-      <p className="text-sm mt-2">⭐ {book.rating}/5</p>
-
-      <h2 className="text-2xl mt-6">Reviews</h2>
-      {reviews.length === 0 ? (
-        <p>No reviews yet.</p>
-      ) : (
-        <ul className="mt-2">
-          {reviews.map((review, index) => (
-            <li key={index} className="border p-2 my-2 rounded">
-              <p className="font-bold">{review.username}</p>
-              <p>{review.comment}</p>
-              <p className="text-sm">⭐ {review.rating}/5</p>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {user && (
-        <form onSubmit={handleReviewSubmit} className="mt-4 p-4 border rounded">
-          <h3 className="text-xl">Add a Review</h3>
-          {error && <p className="text-red-500">{error}</p>}
-          <textarea
-            className="w-full p-2 border rounded mt-2"
-            placeholder="Write your review..."
-            value={newReview}
-            onChange={(e) => setNewReview(e.target.value)}
-            required
-          />
-          <select 
-            className="w-full p-2 border rounded mt-2"
-            value={rating}
-            onChange={(e) => setRating(e.target.value)}
-          >
-            {[1, 2, 3, 4, 5].map((num) => (
-              <option key={num} value={num}>{num} ⭐</option>
-            ))}
-          </select>
-          <button className="mt-2 w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">
-            Submit Review
-          </button>
-        </form>
-      )}
-    </div>
-  );
+            {/* --- Here is your review form --- */}
+            <ReviewForm
+                bookId={id}
+                onReviewSubmitted={() => {
+                    if (typeof window !== "undefined") window.location.reload();
+                }}
+            />
+        </div>
+    );
 }
